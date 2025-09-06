@@ -4,7 +4,7 @@ import { headers } from 'next/headers';
 import { makeRefCode } from '../../../lib/partners';
 import { upsertPartner } from '../../../lib/sheets';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2022-11-15' });
 
 export async function POST(req: NextRequest) {
   const sig = headers().get('stripe-signature');
