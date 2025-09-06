@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import { makeRefCode } from '@/lib/partners';
-import { upsertPartner } from '@/lib/sheets';
+import { makeRefCode } from '../../../lib/partners';
+import { upsertPartner } from '../../../lib/sheets';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' });
 
