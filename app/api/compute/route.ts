@@ -9,18 +9,19 @@ export async function POST(req: NextRequest) {
     const data = await req.json();
 
     const {
-      name = '',
-      email = '',
-      phone = '',
-      provider = '',
-      kwhRate = 0,
-      gjRate = 0,
-      elecAdminFee = 0,
-      gasAdminFee = 0,
-      kwhUsage = 0,
-      gjUsage = 0,
-      ref = null,
-    } = data || {};
+  "name": "Alex",
+  "email": "alex@example.com",
+  "phone": "555-1234",
+  "provider": "Direct Energy",
+  "kwhRate": 0.145,
+  "gjRate": 4.2,
+  "elecAdminFee": 12,
+  "gasAdminFee": 10,
+  "kwhUsage": 800,
+  "gjUsage": 3,
+  "ref": "BLZ-TEST001"
+}
+ = data || {};
 
     // 1) Load our admin/promo rates from Google Sheets
     const rates = await getAdminRates();
