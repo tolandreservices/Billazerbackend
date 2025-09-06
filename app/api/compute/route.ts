@@ -1,3 +1,4 @@
+// app/api/compute/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminRates, appendSubmission, getCalendarForRef } from '../../../lib/sheets';
 import { computeSavings } from '../../../lib/logic';
@@ -6,23 +7,25 @@ import { renderHtmlResult } from '../../../lib/partners';
 export async function POST(req: NextRequest) {
   try {
     const data = await req.json();
+
     const {
-     {
-  "name": "Alex",
-  "email": "alex@example.com",
-  "phone": "555-1234",
-  "provider": "Direct Energy",
-  "kwhRate": 0.145,
-  "gjRate": 4.2,
-  "elecAdminFee": 12,
-  "gasAdminFee": 10,
-  "kwhUsage": 800,
-  "gjUsage": 3,
-  "ref": "BLZ-TEST001"
-}
+      name = '',
+      email = '',
+      phone = '',
+      provider = '',
+      kwhRate = 0,
+      gjRate = 0,
+      elecAdminFee = 0,
+      gasAdminFee = 0,
+      kwhUsage = 0,
+      gjUsage = 0,
+      ref = null,
     } = data || {};
 
+    // 1) Load our admin/promo rates from Google Sheets
     const rates = await getAdminRates();
+
+    // 2) Compute savings
     const result = computeSavings({
       kwhUsage: Number(kwhUsage),
       gjUsage: Number(gjUsage),
@@ -39,8 +42,10 @@ export async function POST(req: NextRequest) {
       gst: rates.gst,
     });
 
+    // 3) Find partner calendar (if ref provided), else default
     const calendarUrl = await getCalendarForRef(ref);
 
+    // 4) Log submission to Google Sheets
     const now = new Date().toISOString();
     await appendSubmission([
       now,
@@ -62,6 +67,7 @@ export async function POST(req: NextRequest) {
       calendarUrl,
     ]);
 
+    // 5) Pre-rendered HTML block (optional, for your frontend to drop in)
     const html = renderHtmlResult({
       name,
       currentTotal: result.currentTotal,
@@ -74,6 +80,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, ...result, calendarUrl, html });
   } catch (err: any) {
     console.error(err);
-    return NextResponse.json({ ok: false, error: err?.message || 'Unexpected error' }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: err?.message || 'Unexpected error' },
+      { status: 500 }
+    );
   }
+}
+
+// Optional: reject non-POST (so browser GET shows 405)
+export async function GET() {
+  return NextResponse.json({ error: 'Method Not Allowed' }, { status: 405 });
 }
