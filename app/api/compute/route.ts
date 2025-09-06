@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminRates, appendSubmission, getCalendarForRef } from '@/lib/sheets';
-import { computeSavings } from '@/lib/logic';
-import { renderHtmlResult } from '@/lib/partners';
+import { getAdminRates, appendSubmission, getCalendarForRef } from '../../../lib/sheets';
+import { computeSavings } from '../../../lib/logic';
+import { renderHtmlResult } from '../../../lib/partners';
 
 export async function POST(req: NextRequest) {
   try {
