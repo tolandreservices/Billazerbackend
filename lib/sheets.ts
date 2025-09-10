@@ -78,3 +78,12 @@ export async function getCalendarForRef(refCode?: string | null) {
   }
   return process.env.DEFAULT_CALENDAR_URL!;
 }
+
+const SPREADSHEET_ID = (process.env.SHEETS_SPREADSHEET_ID || '').trim();
+const ADMIN_RATES_SHEET = (process.env.ADMIN_RATES_SHEET || '').trim();
+const USER_SUBMISSIONS_SHEET = (process.env.USER_SUBMISSIONS_SHEET || '').trim();
+const PARTNERS_SHEET = (process.env.PARTNERS_SHEET || '').trim();
+
+if (!SPREADSHEET_ID) {
+  throw new Error('SHEETS_SPREADSHEET_ID is missing or empty');
+}
