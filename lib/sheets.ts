@@ -1,3 +1,4 @@
+// lib/sheets.ts
 import { google } from 'googleapis';
 
 /* -------------------------------------------------------------------------- */
@@ -9,7 +10,7 @@ const {
   GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
   SHEETS_SPREADSHEET_ID: RAW_SHEETS_ID,
 
-  // Optional overrides for tab names (default to these if not provided)
+  // Optional overrides for tab names (defaults used if not provided)
   ADMIN_RATES_SHEET: RAW_ADMIN_RATES_SHEET = 'Admin Rates',
   USER_SUBMISSIONS_SHEET: RAW_USER_SUBMISSIONS_SHEET = 'User Submissions',
   PARTNERS_SHEET: RAW_PARTNERS_SHEET = 'Partners',
@@ -24,7 +25,7 @@ export const USER_SUBMISSIONS_SHEET = (RAW_USER_SUBMISSIONS_SHEET || 'User Submi
 export const PARTNERS_SHEET = (RAW_PARTNERS_SHEET || 'Partners').trim();
 export const DEFAULT_CALENDAR_URL = (RAW_DEFAULT_CALENDAR_URL || '').trim();
 
-/** Fail fast with helpful messages if required values are missing */
+// Fail fast if required values are missing
 if (!SHEETS_SPREADSHEET_ID) {
   throw new Error('SHEETS_SPREADSHEET_ID is missing or empty (check your Vercel env vars).');
 }
@@ -32,9 +33,7 @@ if (!GOOGLE_SERVICE_ACCOUNT_EMAIL) {
   throw new Error('GOOGLE_SERVICE_ACCOUNT_EMAIL is missing (check your Vercel env vars).');
 }
 if (!GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
-  throw new Error(
-    'GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY is missing (check your Vercel env vars).',
-  );
+  throw new Error('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY is missing (check your Vercel env vars).');
 }
 
 /* -------------------------------------------------------------------------- */
@@ -42,7 +41,7 @@ if (!GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
 /* -------------------------------------------------------------------------- */
 
 function getSheetsClient() {
-  // Private keys on Vercel are usually stored with escaped newlines (\\n)
+  // Private keys on Vercel are often stored with escaped newlines (\\n)
   const key = (GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '').replace(/\\n/g, '\n');
 
   const auth = new google.auth.JWT({
@@ -95,11 +94,9 @@ export async function getAdminRates(): Promise<AdminRates> {
     if (typeof k === 'string') map[k.trim()] = (v ?? '').toString().trim();
   }
 
-  // Tolerate a couple of alternative key names people commonly use
-  const promoGj =
-    Number(map['Promo Gas GJ Rate'] ?? map['Promo GJ Rate'] ?? 0);
-  const regGj =
-    Number(map['Regular Gas GJ Rate'] ?? map['Regular GJ Rate'] ?? 0);
+  // Tolerate a couple of alternative key names commonly used
+  const promoGj = Number(map['Promo Gas GJ Rate'] ?? map['Promo GJ Rate'] ?? 0);
+  const regGj = Number(map['Regular Gas GJ Rate'] ?? map['Regular GJ Rate'] ?? 0);
 
   return {
     promoKwh: Number(map['Promo kWh Rate'] ?? 0),
