@@ -1,22 +1,34 @@
+// lib/sheets.ts
 import { google } from 'googleapis';
 
-// ---------- Environment (single source of truth) ----------
-const env = process.env as Record<string, string | undefined>;
+/* ------------------------------ Environment ------------------------------ */
 
-export const SHEETS_SPREADSHEET_ID = (env.SHEETS_SPREADSHEET_ID || '').trim();
-export const ADMIN_RATES_SHEET = (env.ADMIN_RATES_SHEET || 'Admin Rates').trim();
-export const USER_SUBMISSIONS_SHEET = (env.USER_SUBMISSIONS_SHEET || 'User Submissions').trim();
-export const PARTNERS_SHEET = (env.PARTNERS_SHEET || 'Partners').trim();
-export const DEFAULT_CALENDAR_URL = (env.DEFAULT_CALENDAR_URL || '').trim();
+const ENV = process.env as Record<string, string | undefined>;
 
-const GOOGLE_SERVICE_ACCOUNT_EMAIL = env.GOOGLE_SERVICE_ACCOUNT_EMAIL || '';
-const GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = (env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+const SHEETS_SPREADSHEET_ID_RAW = (ENV.SHEETS_SPREADSHEET_ID ?? '').trim();
+const ADMIN_RATES_SHEET_RAW = (ENV.ADMIN_RATES_SHEET ?? 'Admin Rates').trim();
+const USER_SUBMISSIONS_SHEET_RAW = (ENV.USER_SUBMISSIONS_SHEET ?? 'User Submissions').trim();
+const PARTNERS_SHEET_RAW = (ENV.PARTNERS_SHEET ?? 'Partners').trim();
+const DEFAULT_CALENDAR_URL_RAW = (ENV.DEFAULT_CALENDAR_URL ?? '').trim();
 
+const GOOGLE_SERVICE_ACCOUNT_EMAIL = (ENV.GOOGLE_SERVICE_ACCOUNT_EMAIL ?? '').trim();
+const GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = (ENV.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? '')
+  .replace(/\\n/g, '\n');
+
+/** Exported config (single source of truth) */
+export const SHEETS_SPREADSHEET_ID = SHEETS_SPREADSHEET_ID_RAW;
+export const ADMIN_RATES_SHEET = ADMIN_RATES_SHEET_RAW;
+export const USER_SUBMISSIONS_SHEET = USER_SUBMISSIONS_SHEET_RAW;
+export const PARTNERS_SHEET = PARTNERS_SHEET_RAW;
+export const DEFAULT_CALENDAR_URL = DEFAULT_CALENDAR_URL_RAW;
+
+/** Fail fast if required secrets are missing */
 if (!SHEETS_SPREADSHEET_ID) throw new Error('SHEETS_SPREADSHEET_ID is missing or empty');
 if (!GOOGLE_SERVICE_ACCOUNT_EMAIL) throw new Error('GOOGLE_SERVICE_ACCOUNT_EMAIL is missing');
 if (!GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) throw new Error('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY is missing');
 
-// ---------- Google Sheets client ----------
+/* ---------------------------- Google Sheets auth ---------------------------- */
+
 function getSheetsClient() {
   const auth = new google.auth.JWT({
     email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
@@ -26,7 +38,8 @@ function getSheetsClient() {
   return google.sheets({ version: 'v4', auth });
 }
 
-// ---------- Public API ----------
+/* ---------------------------------- Types ---------------------------------- */
+
 export type AdminRates = {
   promoKwh: number;
   regKwh: number;
@@ -36,6 +49,8 @@ export type AdminRates = {
   ourGasAdmin: number;  // Admin Fee – Gas
   gst: number;
 };
+
+/* --------------------------------- Helpers --------------------------------- */
 
 export async function getAdminRates(): Promise<AdminRates> {
   const sheets = getSheetsClient();
@@ -51,7 +66,7 @@ export async function getAdminRates(): Promise<AdminRates> {
   }
 
   const promoGj = Number(map['Promo Gas GJ Rate'] ?? map['Promo GJ Rate'] ?? 0);
-  const regGj   = Number(map['Regular Gas GJ Rate'] ?? map['Regular GJ Rate'] ?? 0);
+  const regGj = Number(map['Regular Gas GJ Rate'] ?? map['Regular GJ Rate'] ?? 0);
 
   return {
     promoKwh: Number(map['Promo kWh Rate'] ?? 0),
@@ -60,7 +75,7 @@ export async function getAdminRates(): Promise<AdminRates> {
     regGj,
     ourElecAdmin: Number(map['Admin Fee – Electricity'] ?? 0),
     ourGasAdmin: Number(map['Admin Fee – Gas'] ?? 0),
-    gst: Number(map['GST Rate'] ?? env.GST_DEFAULT ?? 0.05),
+    gst: Number(map['GST Rate'] ?? ENV.GST_DEFAULT ?? 0.05),
   };
 }
 
