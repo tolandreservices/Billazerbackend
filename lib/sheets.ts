@@ -1,33 +1,39 @@
 // lib/sheets.ts
 import { google } from 'googleapis';
 
-/* ------------------------------ Environment ------------------------------ */
+/* -------------------------------------------------------------------------- */
+/*                       1) Read & sanitize environment                        */
+/* -------------------------------------------------------------------------- */
 
 const ENV = process.env as Record<string, string | undefined>;
 
-const SHEETS_SPREADSHEET_ID_RAW = (ENV.SHEETS_SPREADSHEET_ID ?? '').trim();
-const ADMIN_RATES_SHEET_RAW = (ENV.ADMIN_RATES_SHEET ?? 'Admin Rates').trim();
-const USER_SUBMISSIONS_SHEET_RAW = (ENV.USER_SUBMISSIONS_SHEET ?? 'User Submissions').trim();
-const PARTNERS_SHEET_RAW = (ENV.PARTNERS_SHEET ?? 'Partners').trim();
-const DEFAULT_CALENDAR_URL_RAW = (ENV.DEFAULT_CALENDAR_URL ?? '').trim();
-
 const GOOGLE_SERVICE_ACCOUNT_EMAIL = (ENV.GOOGLE_SERVICE_ACCOUNT_EMAIL ?? '').trim();
+// Private keys on Vercel are usually stored with escaped newlines (\\n)
 const GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY = (ENV.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ?? '')
   .replace(/\\n/g, '\n');
 
-/** Exported config (single source of truth) */
-export const SHEETS_SPREADSHEET_ID = SHEETS_SPREADSHEET_ID_RAW;
-export const ADMIN_RATES_SHEET = ADMIN_RATES_SHEET_RAW;
-export const USER_SUBMISSIONS_SHEET = USER_SUBMISSIONS_SHEET_RAW;
-export const PARTNERS_SHEET = PARTNERS_SHEET_RAW;
-export const DEFAULT_CALENDAR_URL = DEFAULT_CALENDAR_URL_RAW;
+export const SHEETS_SPREADSHEET_ID = (ENV.SHEETS_SPREADSHEET_ID ?? '').trim();
 
-/** Fail fast if required secrets are missing */
-if (!SHEETS_SPREADSHEET_ID) throw new Error('SHEETS_SPREADSHEET_ID is missing or empty');
-if (!GOOGLE_SERVICE_ACCOUNT_EMAIL) throw new Error('GOOGLE_SERVICE_ACCOUNT_EMAIL is missing');
-if (!GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) throw new Error('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY is missing');
+export const ADMIN_RATES_SHEET = (ENV.ADMIN_RATES_SHEET ?? 'Admin Rates').trim();
+export const USER_SUBMISSIONS_SHEET = (ENV.USER_SUBMISSIONS_SHEET ?? 'User Submissions').trim();
+export const PARTNERS_SHEET = (ENV.PARTNERS_SHEET ?? 'Partners').trim();
 
-/* ---------------------------- Google Sheets auth ---------------------------- */
+export const DEFAULT_CALENDAR_URL = (ENV.DEFAULT_CALENDAR_URL ?? '').trim();
+
+/** Fail fast with helpful messages if required values are missing */
+if (!SHEETS_SPREADSHEET_ID) {
+  throw new Error('SHEETS_SPREADSHEET_ID is missing or empty (check your Vercel env vars).');
+}
+if (!GOOGLE_SERVICE_ACCOUNT_EMAIL) {
+  throw new Error('GOOGLE_SERVICE_ACCOUNT_EMAIL is missing (check your Vercel env vars).');
+}
+if (!GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
+  throw new Error('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY is missing (check your Vercel env vars).');
+}
+
+/* -------------------------------------------------------------------------- */
+/*                           2) Google Sheets client                           */
+/* -------------------------------------------------------------------------- */
 
 function getSheetsClient() {
   const auth = new google.auth.JWT({
@@ -35,10 +41,13 @@ function getSheetsClient() {
     key: GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
+
   return google.sheets({ version: 'v4', auth });
 }
 
-/* ---------------------------------- Types ---------------------------------- */
+/* -------------------------------------------------------------------------- */
+/*                          3) Helpers & public API                            */
+/* -------------------------------------------------------------------------- */
 
 export type AdminRates = {
   promoKwh: number;
@@ -50,10 +59,13 @@ export type AdminRates = {
   gst: number;
 };
 
-/* --------------------------------- Helpers --------------------------------- */
-
+/**
+ * Reads the "Admin Rates" tab (or the override name) as key:value pairs.
+ * Expected layout: two columns like A=Key, B=Value.
+ */
 export async function getAdminRates(): Promise<AdminRates> {
   const sheets = getSheetsClient();
+
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEETS_SPREADSHEET_ID,
     range: `${ADMIN_RATES_SHEET}!A1:B100`,
@@ -65,6 +77,7 @@ export async function getAdminRates(): Promise<AdminRates> {
     if (typeof k === 'string') map[k.trim()] = (v ?? '').toString().trim();
   }
 
+  // Tolerate a couple of alternative key names
   const promoGj = Number(map['Promo Gas GJ Rate'] ?? map['Promo GJ Rate'] ?? 0);
   const regGj = Number(map['Regular Gas GJ Rate'] ?? map['Regular GJ Rate'] ?? 0);
 
@@ -79,6 +92,11 @@ export async function getAdminRates(): Promise<AdminRates> {
   };
 }
 
+/**
+ * Append a single row to the "User Submissions" sheet.
+ * Pass a plain array that matches your column order. Example:
+ *   appendSubmission([timestamp, name, email, ...])
+ */
 export async function appendSubmission(row: any[]) {
   const sheets = getSheetsClient();
   await sheets.spreadsheets.values.append({
@@ -89,6 +107,10 @@ export async function appendSubmission(row: any[]) {
   });
 }
 
+/**
+ * Adds a partner (or logs the latest status) to the "Partners" sheet.
+ * Columns example (A:Z): Timestamp | Email | Plan | Ref Code | Calendar URL | Status
+ */
 export async function upsertPartner(params: {
   email: string;
   plan: string;
@@ -108,6 +130,10 @@ export async function upsertPartner(params: {
   });
 }
 
+/**
+ * Looks up a calendar URL for a given referral code in the "Partners" sheet.
+ * If the columns aren't found or the code doesn't match, returns DEFAULT_CALENDAR_URL.
+ */
 export async function getCalendarForRef(refCode?: string | null): Promise<string> {
   const safeDefault = DEFAULT_CALENDAR_URL || '';
   if (!refCode) return safeDefault;
@@ -124,6 +150,7 @@ export async function getCalendarForRef(refCode?: string | null): Promise<string
   const header = rows[0] || [];
   const refIdx = header.indexOf('Ref Code');
   const calIdx = header.indexOf('Calendar URL');
+
   if (refIdx === -1 || calIdx === -1) return safeDefault;
 
   for (let i = 1; i < rows.length; i++) {
